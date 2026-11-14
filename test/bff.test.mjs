@@ -190,3 +190,17 @@ describe("proxy", () => {
     assert.equal((await res.json()).error.code, "unavailable");
   });
 });
+
+describe("security headers", () => {
+  test("every page carries the CSP and hardening headers", async () => {
+    const res = await fetch(`${APP}/login`);
+    const csp = res.headers.get("content-security-policy") ?? "";
+    for (const d of ["default-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'"]) {
+      assert.ok(csp.includes(d), `CSP missing ${d}`);
+    }
+    assert.ok(!/connect-src[^;]*\*/.test(csp), "connect-src must not allow every origin");
+    assert.equal(res.headers.get("x-frame-options"), "DENY");
+    assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+    assert.match(res.headers.get("strict-transport-security") ?? "", /max-age=\d{7,}/);
+  });
+});
