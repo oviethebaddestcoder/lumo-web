@@ -17,7 +17,7 @@ async function readJSON(req: NextRequest): Promise<Record<string, unknown>> {
 /** Forward a sign-in call, keep the tokens in cookies, return only the user. */
 async function signIn(req: NextRequest, path: string, body: Record<string, unknown>) {
   const jar = cookieJar();
-  const r = await gateway(path, { method: "POST", body: JSON.stringify({ ...body, device: device(req, jar) }) });
+  const r = await gateway(path, { method: "POST", from: req, body: JSON.stringify({ ...body, device: device(req, jar) }) });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) return copyCookies(jar, NextResponse.json(data, { status: r.status }));
   const res = data as SignInResult;
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/auth/[actio
   const b = await readJSON(req);
   switch (action) {
     case "otp-send": {
-      const r = await gateway("/v1/auth/otp/send", { method: "POST", body: JSON.stringify(pick(b, "channel", "target")) });
+      const r = await gateway("/v1/auth/otp/send", { method: "POST", from: req, body: JSON.stringify(pick(b, "channel", "target")) });
       return new NextResponse(r.body, { status: r.status, headers: { "content-type": "application/json" } });
     }
     case "otp-verify":
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/auth/[actio
       // Google Identity Services gives the browser an ID token for our web client ID.
       return signIn(req, "/v1/auth/oauth/google", pick(b, "id_token", "birth_date", "display_name"));
     case "qr-create": {
-      const r = await gateway("/v1/auth/qr", { method: "POST", body: "{}" });
+      const r = await gateway("/v1/auth/qr", { method: "POST", from: req, body: "{}" });
       return new NextResponse(r.body, { status: r.status, headers: { "content-type": "application/json" } });
     }
     case "logout":
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/auth/[action
   const id = req.nextUrl.searchParams.get("id") ?? "";
   const pollToken = req.nextUrl.searchParams.get("poll_token") ?? "";
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) return jsonError(400, "bad_request", "Bad QR id.");
-  const r = await gateway(`/v1/auth/qr/${id}?poll_token=${encodeURIComponent(pollToken)}`);
+  const r = await gateway(`/v1/auth/qr/${id}?poll_token=${encodeURIComponent(pollToken)}`, { from: req });
   const data = (await r.json().catch(() => ({}))) as { status?: string; result?: SignInResult };
   if (!r.ok) return NextResponse.json(data, { status: r.status });
   if (data.status === "approved" && data.result?.tokens) {

@@ -13,8 +13,20 @@ export type Tokens = {
 
 export type Device = { device_id: string; device_name: string; platform: "web" };
 
-export async function gateway(path: string, init: RequestInit & { token?: string } = {}): Promise<Response> {
+/**
+ * Call the gateway. Pass `from` (the incoming request) so the gateway's
+ * per-IP rate limits apply to the real visitor, not to this server: without
+ * it every web sign-in would share one limit.
+ */
+export async function gateway(path: string, init: RequestInit & { token?: string; from?: { headers: Headers } } = {}): Promise<Response> {
+  const { from, token, ...rest } = init;
+  init = { ...rest, token };
   const headers = new Headers(init.headers);
+  // The load balancer appends the visitor's address to X-Forwarded-For; the
+  // gateway reads the chain right to left and skips trusted proxies, so
+  // anything a visitor puts on the left is ignored.
+  const xff = from?.headers.get("x-forwarded-for");
+  if (xff) headers.set("x-forwarded-for", xff.slice(0, 512));
   headers.set("Accept", "application/json");
   if (init.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (init.token) headers.set("Authorization", `Bearer ${init.token}`);

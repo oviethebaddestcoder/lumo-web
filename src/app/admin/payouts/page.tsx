@@ -95,6 +95,18 @@ export default function AdminPayouts() {
                             Reject
                           </Button>
                         </div>
+                      ) : p.status === "processing" ? (
+                        <Button
+                          kind="ghost"
+                          className="h-9 px-3"
+                          busy={approve.isPending && approve.variables === p.id}
+                          onClick={() =>
+                            confirm("Retry the bank transfer? Paystack refuses a duplicate, so this can't pay twice. Check the Paystack dashboard first if unsure.") &&
+                            approve.mutate(p.id)
+                          }
+                        >
+                          Retry transfer
+                        </Button>
                       ) : (
                         <span className="text-xs text-muted">{p.note}</span>
                       )}

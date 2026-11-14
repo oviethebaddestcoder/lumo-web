@@ -16,6 +16,11 @@ const RETURN_HEADERS = ["content-type", "cache-control", "x-trace-id", "retry-af
 async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   if (!csrfOk(req)) return jsonError(403, "csrf", "Missing request header.");
   const { path } = await ctx.params;
+  // Segments arrive decoded: refuse anything that could change meaning once
+  // re-joined ("..", "x/../internal" from an encoded slash, backslashes).
+  if (path.some((seg) => seg === "" || seg === "." || seg === ".." || /[\/\\\u0000]/.test(seg))) {
+    return jsonError(400, "bad_path", "Invalid request path.");
+  }
   const rel = path.map(encodeURIComponent).join("/");
   if (BLOCKED.some((re) => re.test(rel))) return jsonError(404, "not_found", "Not found.");
 
@@ -25,8 +30,6 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
     const v = req.headers.get(h);
     if (v) headers.set(h, v);
   }
-  const ip = req.headers.get("x-forwarded-for");
-  if (ip) headers.set("x-forwarded-for", ip);
 
   const jar = cookieJar();
   let token = req.cookies.get(AT)?.value;
@@ -51,7 +54,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
     if (r === "race") return copyCookies(jar, jsonError(409, "refresh_in_progress", "Retry."));
   }
   const send = () =>
-    gateway(`/v1/${rel}${req.nextUrl.search}`, { method: req.method, headers, body: body && body.byteLength ? body : undefined, token });
+    gateway(`/v1/${rel}${req.nextUrl.search}`, { method: req.method, headers, from: req, body: body && body.byteLength ? body : undefined, token });
   let up = await send();
   if (up.status === 401 && !refreshed && req.cookies.get(RT)) {
     const r = await doRefresh();

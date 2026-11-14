@@ -48,7 +48,11 @@ export type Refreshed = { tokens?: Tokens; status: "ok" | "race" | "signed_out" 
 export async function refresh(req: NextRequest, res: NextResponse): Promise<Refreshed> {
   const rt = req.cookies.get(RT)?.value;
   if (!rt) return { status: "signed_out" };
-  const r = await gateway("/v1/auth/refresh", { method: "POST", body: JSON.stringify({ refresh_token: rt, device: device(req, res) }) });
+  const r = await gateway("/v1/auth/refresh", {
+    method: "POST",
+    from: req,
+    body: JSON.stringify({ refresh_token: rt, device: device(req, res) }),
+  });
   if (r.ok) return { status: "ok", tokens: (await r.json()) as Tokens };
   if (r.status === 409) return { status: "race" };
   if (r.status === 401 || r.status === 403) return { status: "signed_out" };
