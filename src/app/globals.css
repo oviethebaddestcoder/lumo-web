@@ -1,35 +1,130 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
-@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/newsreader/opsz.css";
 
-/* Lumo design tokens (same as the mobile app). */
+/*
+ * Lumo design tokens, shared with the mobile app (src/theme/tokens.ts there).
+ * Light is the default; dark applies when the OS asks for it, or when the
+ * viewer picks it in the theme menu (data-theme on <html>).
+ */
 @theme {
-  --color-bg: #0b0b0f;
-  --color-surface: #16161d;
-  --color-surface2: #1f1f28;
-  --color-line: #2a2a35;
-  --color-ink: #f5f5f7;
-  --color-muted: #a1a1ae;
-  --color-muted-strong: #c9c9d3;
-  --color-inactive: #8e8e9c;
-  --color-live: #d61f52;
-  --color-coin: #ffb224;
-  --color-diamond: #a9c6ff;
-  --color-success: #a6e3b8;
-  --color-danger: #ff8fa8;
+  --color-bg: var(--lumo-bg);
+  --color-surface: var(--lumo-surface);
+  --color-surface2: var(--lumo-surface2);
+  --color-line: var(--lumo-line);
+  --color-line-soft: var(--lumo-line-soft);
+  --color-ink: var(--lumo-ink);
+  --color-muted: var(--lumo-muted);
+  --color-muted-strong: var(--lumo-muted-strong);
+  --color-inactive: var(--lumo-inactive);
+  --color-live: var(--lumo-live);
+  --color-live-ink: var(--lumo-live-ink);
+  --color-coin: var(--lumo-coin);
+  --color-diamond: var(--lumo-diamond);
+  --color-success: var(--lumo-success);
+  --color-danger: var(--lumo-danger);
   --font-sans: "Inter Variable", system-ui, sans-serif;
-  --font-display: "Space Grotesk Variable", system-ui, sans-serif;
+  --font-display: "Newsreader Variable", Georgia, "Times New Roman", serif;
 }
 
-html {
+:root {
+  --lumo-bg: #faf9f7;
+  --lumo-surface: #ffffff;
+  --lumo-surface2: #f1efeb;
+  --lumo-line: #e3e0da;
+  --lumo-line-soft: #ece9e4;
+  --lumo-ink: #17161a;
+  --lumo-muted: #6b6a72;
+  --lumo-muted-strong: #45444c;
+  --lumo-inactive: #8b8a92;
+  --lumo-live: #d61f52;
+  --lumo-live-ink: #b8173f;
+  --lumo-coin: #a15c00;
+  --lumo-diamond: #2f5fcc;
+  --lumo-success: #18794e;
+  --lumo-danger: #c4213f;
+  --lumo-shadow: 0 1px 2px rgb(23 22 26 / 0.04), 0 8px 24px rgb(23 22 26 / 0.06);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lumo-bg: #0c0c0f;
+    --lumo-surface: #15151a;
+    --lumo-surface2: #1f1f26;
+    --lumo-line: #2b2b33;
+    --lumo-line-soft: #222229;
+    --lumo-ink: #f4f3f1;
+    --lumo-muted: #a3a2ab;
+    --lumo-muted-strong: #cac9d0;
+    --lumo-inactive: #8e8d97;
+    --lumo-live: #e0285c;
+    --lumo-live-ink: #ff7a9c;
+    --lumo-coin: #ffb224;
+    --lumo-diamond: #a9c6ff;
+    --lumo-success: #6fd69c;
+    --lumo-danger: #ff8fa8;
+    --lumo-shadow: none;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --lumo-bg: #0c0c0f;
+  --lumo-surface: #15151a;
+  --lumo-surface2: #1f1f26;
+  --lumo-line: #2b2b33;
+  --lumo-line-soft: #222229;
+  --lumo-ink: #f4f3f1;
+  --lumo-muted: #a3a2ab;
+  --lumo-muted-strong: #cac9d0;
+  --lumo-inactive: #8e8d97;
+  --lumo-live: #e0285c;
+  --lumo-live-ink: #ff7a9c;
+  --lumo-coin: #ffb224;
+  --lumo-diamond: #a9c6ff;
+  --lumo-success: #6fd69c;
+  --lumo-danger: #ff8fa8;
+  --lumo-shadow: none;
   color-scheme: dark;
 }
+
+@utility shadow-card {
+  box-shadow: var(--lumo-shadow);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-tap-highlight-color: transparent;
 }
+
+h1,
+h2,
+.font-display {
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
 :focus-visible {
   outline: 2px solid var(--color-live);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -29,7 +29,7 @@ export function BirthdayForm() {
         }
       }}
     >
-      <h1 className="font-display text-2xl font-bold">When&apos;s your birthday?</h1>
+      <h1 className="font-display text-[26px] font-semibold leading-tight">When&apos;s your birthday?</h1>
       <p className="text-sm text-muted">It isn&apos;t shown on your profile. Gifting and some live features are for 18+.</p>
       <Field label="Date of birth" type="date" value={date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} />
       <ErrorText error={error} />

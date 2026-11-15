@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Avatar, Button, Card, Empty, Stat } from "@/components/ui";
+import { Avatar, Button, Card, Empty, Stat, PageHeader } from "@/components/ui";
 import { api } from "@/lib/client/api";
 import { useMe } from "@/lib/client/hooks";
 import { compact } from "@/lib/format";
@@ -22,8 +22,8 @@ export default function AudiencePage() {
   const list = followers.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <>
-      <h1 className="font-display text-3xl font-bold">Audience</h1>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
+      <PageHeader title="Audience" />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Followers" value={compact(counts.data?.followers)} />
         <Stat label="New this week" value={week.data ? `+${compact(week.data.count)}` : "–"} />
         <Stat label="New in 30 days" value={month.data ? `+${compact(month.data.count)}` : "–"} />

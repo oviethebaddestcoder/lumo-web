@@ -42,6 +42,12 @@ const gw = http.createServer(async (req, res) => {
     case "GET /v1/me":
       if (auth === "Bearer at2") return json(200, { id: "u1", handle: "ada" });
       return json(401, { error: { code: "token_expired" } }); // at1 counts as expired
+    case "GET /v1/users/by-handle/ada":
+      return json(200, { id: "u1", handle: "ada", display_name: "Ada's Kitchen", bio: "", status: "active" });
+    case "GET /v1/social/users/u1/counts":
+      return json(200, { followers: 8, following: 0, likes: 12 });
+    case "GET /v1/media/users/u1/videos":
+      return json(200, { items: [] });
     case "POST /v1/social/follows/u2":
       return auth ? (res.writeHead(204), res.end()) : json(401, {});
     default:
@@ -122,6 +128,24 @@ describe("sign-in", () => {
       const res = await fetch(APP + path, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
       assert.equal(res.status, 403, path);
     }
+  });
+});
+
+describe("share links", () => {
+  // The apps share profiles as lumo.app/@handle. This route once 404'd for
+  // every profile because the proxy matcher never matched "@".
+  test("/@handle shows the public profile", async () => {
+    const res = await fetch(`${APP}/@ada`);
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /Ada(&#x27;|')s Kitchen/);
+  });
+
+  test("an unknown handle shows the not-found page and is not indexed", async () => {
+    // The profile streams in (Partial Prerender), so the status line is sent
+    // before the lookup finishes; the page itself says not found + noindex.
+    const html = await (await fetch(`${APP}/@nobody_here`)).text();
+    assert.match(html, /Nothing here/);
+    assert.match(html, /<meta name="robots" content="noindex"/);
   });
 });
 

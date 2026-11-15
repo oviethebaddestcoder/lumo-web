@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Button, Card, ErrorText, Field, Stat } from "@/components/ui";
+import { Button, Card, ErrorText, Field, Stat, PageHeader } from "@/components/ui";
 import { api, ApiError } from "@/lib/client/api";
 import { newKey } from "@/lib/client/hooks";
 import { compact, naira } from "@/lib/format";
@@ -41,8 +41,8 @@ export default function EarningsPage() {
 
   return (
     <>
-      <h1 className="font-display text-3xl font-bold">Earnings</h1>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
+      <PageHeader title="Earnings" />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Stat label="Diamonds to cash out" value={compact(balance.data?.diamonds)} color="var(--color-diamond)" />
         <Stat label="This week" value={compact(stats.data?.diamonds_week)} sub="Diamonds from gifts" />
         <Stat label="All time" value={compact(stats.data?.diamonds_earned_total)} sub="Diamonds earned" />
@@ -65,16 +65,26 @@ export default function EarningsPage() {
               label="Diamonds"
               inputMode="numeric"
               value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => {
+                // A different amount is a different request: a fresh idempotency
+                // key, or the server would replay the earlier attempt.
+                setAmount(e.target.value.replace(/\D/g, ""));
+                setKey(newKey());
+              }}
               placeholder="e.g. 10000"
             />
+            {diamonds > 0 && account.data?.kobo_per_diamond ? (
+              <p className="-mt-2 text-xs text-muted">≈ {naira(diamonds * account.data.kobo_per_diamond)} before review. Finance confirms the final amount.</p>
+            ) : account.data?.min_diamonds ? (
+              <p className="-mt-2 text-xs text-muted">Minimum cash-out is {account.data.min_diamonds.toLocaleString()} diamonds.</p>
+            ) : null}
             <ErrorText error={cashout.error} />
             {cashout.error instanceof ApiError && cashout.error.code === "payout_account_required" ? (
               <p className="text-sm text-muted">Add a bank account above first.</p>
             ) : null}
             <Button
               className="self-start"
-              disabled={diamonds <= 0 || diamonds > (balance.data?.diamonds ?? 0) || !account.data?.account}
+              disabled={diamonds <= 0 || diamonds > (balance.data?.diamonds ?? 0) || diamonds < (account.data?.min_diamonds ?? 0) || !account.data?.account}
               busy={cashout.isPending}
               onClick={() => confirm(`Cash out ${diamonds.toLocaleString()} diamonds? Finance reviews requests within 3 business days.`) && cashout.mutate()}
             >
@@ -86,10 +96,10 @@ export default function EarningsPage() {
           {(payouts.data?.items ?? []).length === 0 ? (
             <p className="text-sm text-muted">No cash-outs yet.</p>
           ) : (
-            <ul className="divide-y divide-[#22222B] text-sm">
+            <ul className="divide-y divide-line-soft text-sm">
               {payouts.data!.items.map((p) => (
                 <li key={p.id} className="flex items-center gap-3 py-3">
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold">
                       {p.diamonds.toLocaleString()} diamonds · {naira(p.amount_kobo)}
                     </p>

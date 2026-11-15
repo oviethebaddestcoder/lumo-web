@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { ThemeSwitch } from "@/components/Theme";
 import { useState } from "react";
 import { Button, Card, Empty, ErrorText, Logo } from "@/components/ui";
 import { api } from "@/lib/client/api";
@@ -30,13 +31,14 @@ export default function AdminPayouts() {
   const items = list.data?.items ?? [];
   const total = items.reduce((a, p) => a + p.amount_kobo, 0);
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-5 px-6 py-6">
+    <main className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
       <header className="flex items-center justify-between">
         <Link href="/studio">
           <Logo suffix="Finance" />
         </Link>
+        <ThemeSwitch />
       </header>
-      <h1 className="font-display text-3xl font-bold">Cash-outs</h1>
+      <h1 className="font-display text-[28px] font-semibold leading-tight sm:text-[34px]">Cash-outs</h1>
       <div role="tablist" className="flex flex-wrap gap-1">
         {TABS.map((t) => (
           <button
@@ -44,7 +46,7 @@ export default function AdminPayouts() {
             role="tab"
             aria-selected={status === t}
             onClick={() => setStatus(t)}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${status === t ? "bg-ink text-bg" : "bg-surface text-muted"}`}
+            className={`rounded-full border px-4 py-1.5 text-sm font-semibold capitalize ${status === t ? "border-ink bg-ink text-bg" : "border-line bg-surface text-muted hover:text-ink"}`}
           >
             {t.replace("_", " ")}
           </button>
@@ -68,7 +70,7 @@ export default function AdminPayouts() {
               </thead>
               <tbody>
                 {items.map((p) => (
-                  <tr key={p.id} className="border-t border-[#22222B]">
+                  <tr key={p.id} className="border-t border-line-soft">
                     <td className="px-2 py-3">{new Date(p.created_at).toLocaleString()}</td>
                     <td className="px-2 py-3 font-mono text-xs">{p.user_id.slice(0, 8)}…</td>
                     <td className="px-2 py-3">{p.diamonds.toLocaleString()}</td>
@@ -80,6 +82,7 @@ export default function AdminPayouts() {
                           <Button
                             className="h-9 px-3"
                             busy={approve.isPending && approve.variables === p.id}
+                            disabled={approve.isPending || reject.isPending}
                             onClick={() => confirm(`Send ${naira(p.amount_kobo)} to ${p.bank_label}?`) && approve.mutate(p.id)}
                           >
                             Approve
@@ -87,8 +90,10 @@ export default function AdminPayouts() {
                           <Button
                             kind="ghost"
                             className="h-9 px-3"
+                            busy={reject.isPending && reject.variables?.id === p.id}
+                            disabled={approve.isPending || reject.isPending}
                             onClick={() => {
-                              const reason = prompt("Reason (shown to the creator):");
+                              const reason = prompt("Reason (shown to the creator):")?.trim();
                               if (reason) reject.mutate({ id: p.id, reason });
                             }}
                           >
@@ -100,6 +105,7 @@ export default function AdminPayouts() {
                           kind="ghost"
                           className="h-9 px-3"
                           busy={approve.isPending && approve.variables === p.id}
+                          disabled={approve.isPending || reject.isPending}
                           onClick={() =>
                             confirm("Retry the bank transfer? Paystack refuses a duplicate, so this can't pay twice. Check the Paystack dashboard first if unsure.") &&
                             approve.mutate(p.id)

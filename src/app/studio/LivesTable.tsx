@@ -30,11 +30,11 @@ export function LivesTable({ limit }: { limit?: number }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="border-t border-[#22222B]">
+            <tr key={r.id} className="border-t border-line-soft">
               <td className="px-1.5 py-3 text-muted-strong">{shortDate(r.started_at)}</td>
               <td className="px-1.5 py-3 font-semibold">
                 {r.title}
-                {r.status === "live" ? <span className="ml-2 rounded bg-live px-1.5 py-0.5 text-[10px] font-bold">LIVE</span> : null}
+                {r.status === "live" ? <span className="ml-2 rounded bg-live px-1.5 py-0.5 text-[10px] font-bold text-white">LIVE</span> : null}
               </td>
               <td className="px-1.5 py-3 text-muted-strong">{duration(r.duration_sec)}</td>
               <td className="px-1.5 py-3">{compact(r.peak_viewers)}</td>

@@ -9,4 +9,6 @@ export function proxy(req: NextRequest) {
   return NextResponse.rewrite(url);
 }
 
-export const config = { matcher: ["/@:path*"] };
+// "/@:path*" never matched: path-to-regexp reads ":path" as the whole
+// segment, so "@" must be part of a regex group.
+export const config = { matcher: ["/(@.*)"] };

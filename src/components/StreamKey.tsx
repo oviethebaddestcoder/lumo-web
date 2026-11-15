@@ -5,7 +5,7 @@ import { useState } from "react";
 import { api } from "@/lib/client/api";
 
 function CopyRow({ id, label, value, secret }: { id: string; label: string; value: string; secret?: boolean }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"" | "ok" | "manual">("");
   return (
     <>
       <label htmlFor={id} className="text-xs font-semibold text-muted">
@@ -20,14 +20,24 @@ function CopyRow({ id, label, value, secret }: { id: string; label: string; valu
           className="h-10 min-w-0 flex-auto rounded-xl border border-line bg-bg px-3 font-mono text-[13px]"
         />
         <button
-          className="h-10 rounded-xl bg-line px-3.5 text-[13px] font-semibold"
-          onClick={async () => {
-            await navigator.clipboard.writeText(value);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
+          className="h-10 shrink-0 rounded-xl bg-surface2 px-3.5 text-[13px] font-semibold ring-1 ring-line hover:bg-line"
+          onClick={async (e) => {
+            try {
+              await navigator.clipboard.writeText(value);
+              setCopied("ok");
+            } catch {
+              // Clipboard blocked (permissions, http): select it for Ctrl+C instead.
+              const input = e.currentTarget.parentElement?.querySelector("input");
+              if (input) {
+                input.type = "text";
+                input.select();
+              }
+              setCopied("manual");
+            }
+            setTimeout(() => setCopied(""), 2000);
           }}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied === "ok" ? "Copied" : copied === "manual" ? "Press Ctrl+C" : "Copy"}
         </button>
       </div>
     </>
@@ -53,6 +63,7 @@ export function StreamKey() {
           >
             {rotate.isPending ? "Resetting…" : "Reset key"}
           </button>
+          {rotate.isError ? <p className="text-sm text-danger">{(rotate.error as Error).message}</p> : null}
         </>
       ) : key.isError ? (
         <p className="text-sm text-danger">{(key.error as Error).message}</p>

@@ -4,6 +4,8 @@ export type MediaApi = {
   startUpload(input: UploadStartInput): Promise<UploadStart>;
   partUrls(id: string, from: number, to: number): Promise<{ from: number; part_urls: string[] }>;
   complete(id: string, parts: UploadedPart[]): Promise<Video>;
+  /** Optional: drop the half-made video when the upload fails or is cancelled. */
+  remove?(id: string): Promise<void>;
 };
 
 export type Progress = { sent: number; total: number; partsDone: number; parts: number };
@@ -37,11 +39,13 @@ export async function uploadFile(
     return urls.get(n)!;
   };
 
+  let failed = false;
   const put = async (n: number) => {
     const from = (n - 1) * start.part_size;
     const chunk = file.slice(from, Math.min(file.size, from + start.part_size));
     for (let attempt = 0; ; attempt++) {
       if (opts.signal?.aborted) throw new Error("Upload cancelled.");
+      if (failed) return; // another part already failed; stop spending data
       let res: Response | null = null;
       try {
         res = await fetchFn(await urlFor(n, attempt > 0), { method: "PUT", body: chunk, signal: opts.signal });
@@ -63,9 +67,21 @@ export async function uploadFile(
 
   let next = 1;
   const worker = async () => {
-    while (next <= start.parts) await put(next++);
+    try {
+      while (!failed && next <= start.parts) await put(next++);
+    } catch (e) {
+      failed = true;
+      throw e;
+    }
   };
-  await Promise.all(Array.from({ length: Math.min(opts.concurrency ?? 3, start.parts) }, worker));
+  try {
+    await Promise.all(Array.from({ length: Math.min(opts.concurrency ?? 3, start.parts) }, worker));
+  } catch (e) {
+    // Without this the draft sits in the creator's list as "uploading" until
+    // the server's stale-upload sweep.
+    await media.remove?.(start.video_id).catch(() => undefined);
+    throw e;
+  }
   etags.sort((a, b) => a.number - b.number);
   return media.complete(start.video_id, etags);
 }

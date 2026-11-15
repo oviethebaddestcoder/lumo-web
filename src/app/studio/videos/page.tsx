@@ -1,9 +1,9 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button, Card, Empty, ErrorText, Field } from "@/components/ui";
+import { Button, Card, Empty, ErrorText, Field, PageHeader } from "@/components/ui";
 import { api } from "@/lib/client/api";
 import { useMe } from "@/lib/client/hooks";
 import { contentTypeOf, uploadFile, type Progress } from "@/lib/client/upload";
@@ -34,21 +34,18 @@ function Videos() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-3xl font-bold">Videos</h1>
-        <Button className="ml-auto" onClick={() => setShowUpload((s) => !s)}>
-          {showUpload ? "Close upload" : "Upload video"}
-        </Button>
-      </div>
+      <PageHeader title="Videos">
+        <Button onClick={() => setShowUpload((s) => !s)}>{showUpload ? "Close upload" : "Upload video"}</Button>
+      </PageHeader>
       {showUpload ? <UploadCard onDone={() => setShowUpload(false)} /> : null}
-      <div role="tablist" className="flex gap-1 border-b border-line">
+      <div role="tablist" className="scrollbar-none flex gap-1 overflow-x-auto border-b border-line">
         {(["short", "long", "replay"] as const).map((k) => (
           <button
             key={k}
             role="tab"
             aria-selected={kind === k}
             onClick={() => setKind(k)}
-            className={`px-4 py-2.5 text-sm font-semibold ${kind === k ? "border-b-2 border-ink text-ink" : "text-inactive"}`}
+            className={`-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm font-semibold ${kind === k ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"}`}
           >
             {{ short: "Short videos", long: "Long videos", replay: "Replays" }[k]}
           </button>
@@ -60,7 +57,7 @@ function Videos() {
         ) : items.length === 0 ? (
           <Empty title="Nothing here yet" hint="Upload a video or go live with replays on." />
         ) : (
-          <ul className="divide-y divide-[#22222B]">
+          <ul className="divide-y divide-line-soft">
             {items.map((v) => (
               <VideoRow key={v.id} v={v} />
             ))}
@@ -84,38 +81,46 @@ function VideoRow({ v }: { v: Video }) {
   });
   const remove = useMutation({ mutationFn: () => api.media.remove(v.id), onSuccess: () => void qc.invalidateQueries({ queryKey: ["myVideos"] }) });
   return (
-    <li className="flex items-center gap-4 py-3">
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
       <div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg bg-surface2">
         {v.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={v.thumbnail_url} alt="" className="h-full w-full object-cover" />
         ) : null}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-[1_1_180px]">
         <a href={`/v/${v.id}`} target="_blank" rel="noreferrer" className="block truncate font-semibold hover:underline">
           {v.title || "Untitled"}
         </a>
         <p className="text-xs text-muted">
-          {new Date(v.created_at).toLocaleDateString()} · {compact(v.views)} views ·{" "}
+          {new Date(v.created_at).toLocaleDateString("en-GB", { dateStyle: "medium" })} · {compact(v.views)} views ·{" "}
           <span className={v.status === "ready" ? "text-success" : v.status === "failed" ? "text-danger" : "text-coin"}>{v.status}</span>
         </p>
+        <ErrorText error={update.error ?? remove.error} />
       </div>
-      <label className="sr-only" htmlFor={`vis-${v.id}`}>
-        Visibility
-      </label>
-      <select
-        id={`vis-${v.id}`}
-        value={v.visibility}
-        onChange={(e) => update.mutate(e.target.value as Visibility)}
-        className="h-9 rounded-lg border border-line bg-bg px-2 text-sm"
-      >
-        <option value="public">Everyone</option>
-        <option value="followers">Followers</option>
-        <option value="private">Only me</option>
-      </select>
-      <button className="text-sm text-danger" onClick={() => confirm("Delete this video for good?") && remove.mutate()}>
-        Delete
-      </button>
+      <div className="ml-auto flex items-center gap-3">
+        <label className="sr-only" htmlFor={`vis-${v.id}`}>
+          Visibility
+        </label>
+        <select
+          id={`vis-${v.id}`}
+          value={update.isPending ? update.variables : v.visibility}
+          disabled={update.isPending || remove.isPending}
+          onChange={(e) => update.mutate(e.target.value as Visibility)}
+          className="h-9 rounded-lg border border-line bg-bg px-2 text-sm"
+        >
+          <option value="public">Everyone</option>
+          <option value="followers">Followers</option>
+          <option value="private">Only me</option>
+        </select>
+        <button
+          className="text-sm font-medium text-danger disabled:opacity-50"
+          disabled={remove.isPending}
+          onClick={() => confirm("Delete this video for good?") && remove.mutate()}
+        >
+          {remove.isPending ? "Deleting…" : "Delete"}
+        </button>
+      </div>
     </li>
   );
 }
@@ -132,6 +137,8 @@ function UploadCard({ onDone }: { onDone: () => void }) {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<unknown>(null);
   const busy = !!progress && progress.partsDone < progress.parts;
+  // Closing the card mid-upload must not leave the upload running unseen.
+  useEffect(() => () => abort.current?.abort(), []);
 
   async function start() {
     if (!file) return;
@@ -145,8 +152,8 @@ function UploadCard({ onDone }: { onDone: () => void }) {
       await qc.invalidateQueries({ queryKey: ["myVideos"] });
       onDone();
     } catch (e) {
-      setError(e);
       setProgress(null);
+      if (!abort.current?.signal.aborted) setError(e);
     }
   }
 

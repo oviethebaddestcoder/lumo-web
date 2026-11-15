@@ -46,7 +46,7 @@ async function Profile({ params }: { params: Promise<{ handle: string }> }) {
     <>
       <section className="flex flex-col items-center gap-2 text-center">
         <Avatar src={u.avatar_url} name={u.display_name} size={96} />
-        <h1 className="font-display text-2xl font-bold">{u.display_name}</h1>
+        <h1 className="font-display text-[26px] font-semibold leading-tight">{u.display_name}</h1>
         <p className="text-muted">@{u.handle}</p>
         <div className="my-2 flex gap-8">
           {[
@@ -62,14 +62,14 @@ async function Profile({ params }: { params: Promise<{ handle: string }> }) {
         </div>
         {u.bio ? <p className="max-w-md text-[15px] text-muted-strong">{u.bio}</p> : null}
       </section>
-      <section className="mt-8 grid grid-cols-3 gap-0.5">
+      <section className="mt-8 grid grid-cols-3 gap-0.5 overflow-hidden rounded-xl sm:grid-cols-4">
         {videos.map((v) => (
           <Link key={v.id} href={`/v/${v.id}`} className="relative block aspect-[3/4] bg-surface2">
             {v.thumbnail_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={v.thumbnail_url} alt={v.title} className="h-full w-full object-cover" />
             ) : null}
-            <span className="absolute bottom-1.5 left-1.5 text-xs font-bold">▶ {compact(v.views)}</span>
+            <span className="absolute bottom-1.5 left-1.5 text-xs font-bold text-white drop-shadow">▶ {compact(v.views)}</span>
           </Link>
         ))}
       </section>

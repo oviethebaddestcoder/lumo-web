@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Avatar, Button, Card, ErrorText, Field } from "@/components/ui";
+import { Avatar, Button, Card, ErrorText, Field, PageHeader } from "@/components/ui";
 import { api, ApiError } from "@/lib/client/api";
 import { useMe } from "@/lib/client/hooks";
 import type { Me } from "@/lib/types";
@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const router = useRouter();
   return (
     <>
-      <h1 className="font-display text-3xl font-bold">Settings</h1>
+      <PageHeader title="Settings" />
       {me.data ? <ProfileForm key={me.data.id} me={me.data} /> : null}
       <Card title="Security">
         <p className="mb-3 text-sm text-muted">

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ThemeSwitch } from "@/components/Theme";
 import { Button, Card, ErrorText, Field, Logo } from "@/components/ui";
 import { api } from "@/lib/client/api";
 import { useMe } from "@/lib/client/hooks";
@@ -16,21 +17,25 @@ import { naira } from "@/lib/format";
  */
 export function WebWallet() {
   const me = useMe();
-  const qc = useQueryClient();
   const returned = useSearchParams().get("reference");
-  const balance = useQuery({ queryKey: ["balance"], queryFn: api.wallet.balance, refetchInterval: returned ? 3000 : false });
+  // After Paystack sends the buyer back, poll for the webhook's credit for a
+  // minute, then stop: a closed tab is not the only way this page ends.
+  const [polling, setPolling] = useState(!!returned);
+  useEffect(() => {
+    if (!returned) return;
+    const t = setTimeout(() => setPolling(false), 60_000);
+    return () => clearTimeout(t);
+  }, [returned]);
+  const balance = useQuery({ queryKey: ["balance"], queryFn: api.wallet.balance, refetchInterval: polling ? 3000 : false });
   const catalog = useQuery({ queryKey: ["catalog"], queryFn: api.wallet.catalog });
   const [typed, setEmail] = useState<string | null>(null);
   const email = typed ?? me.data?.email ?? "";
-  useEffect(() => {
-    if (!returned) return;
-    const t = setTimeout(() => void qc.invalidateQueries({ queryKey: ["balance"] }), 20_000);
-    return () => clearTimeout(t);
-  }, [returned, qc]);
 
+  const [leaving, setLeaving] = useState(false);
   const pay = useMutation({
     mutationFn: (packId: string) => api.wallet.webCheckout(packId, email.trim(), `${window.location.origin}/wallet`),
     onSuccess: (r) => {
+      setLeaving(true); // keep the packs disabled until the browser leaves
       window.location.assign(r.authorization_url);
     },
   });
@@ -43,19 +48,24 @@ export function WebWallet() {
         <Link href="/">
           <Logo />
         </Link>
-        <Link href="/studio" className="text-sm font-semibold text-muted">
-          Studio
-        </Link>
+        <div className="flex items-center gap-3">
+          <span className="hidden sm:block">
+            <ThemeSwitch />
+          </span>
+          <Link href="/studio" className="text-sm font-semibold text-muted hover:text-ink">
+            Studio
+          </Link>
+        </div>
       </header>
-      <h1 className="font-display text-3xl font-bold">Buy coins</h1>
+      <h1 className="font-display text-[28px] font-semibold leading-tight sm:text-[34px]">Buy coins</h1>
       {returned ? (
         <p className="rounded-xl bg-surface p-4 text-sm" role="status">
-          Payment received. Your coins appear as soon as the payment is confirmed, usually within a minute.
+          {polling ? "Checking your payment… " : ""}If the payment went through, your coins appear here as soon as Paystack confirms it, usually within a minute.
         </p>
       ) : null}
       <Card>
         <p className="text-sm text-muted">Your balance</p>
-        <p className="font-display text-4xl font-bold text-coin">{(balance.data?.coins ?? 0).toLocaleString()} coins</p>
+        <p className="font-display text-4xl font-semibold tabular-nums text-coin">{(balance.data?.coins ?? 0).toLocaleString()} coins</p>
       </Card>
       <Card title="Coin packs">
         <div className="mb-4 max-w-sm">
@@ -65,11 +75,11 @@ export function WebWallet() {
           {packs.map((p) => (
             <button
               key={p.id}
-              disabled={!emailOk || pay.isPending}
+              disabled={!emailOk || pay.isPending || leaving}
               onClick={() => pay.mutate(p.id)}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-bg p-5 hover:border-coin disabled:opacity-50"
+              className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-bg p-4 transition hover:border-coin disabled:opacity-50 sm:p-5"
             >
-              <span className="font-display text-2xl font-bold">{p.coins.toLocaleString()}</span>
+              <span className="font-display text-[26px] font-semibold leading-tight">{p.coins.toLocaleString()}</span>
               <span className="text-xs text-muted">coins</span>
               <span className="rounded-full bg-coin px-3 py-1 text-sm font-bold text-bg">{naira(p.web_amount_kobo)}</span>
             </button>
@@ -80,7 +90,7 @@ export function WebWallet() {
           Paid securely with Paystack. Coins are for sending gifts and have no cash value. In the mobile app, coins are bought through Google Play or the App Store.
         </p>
       </Card>
-      {pay.isPending ? <Button busy className="self-start">Opening Paystack…</Button> : null}
+      {pay.isPending || leaving ? <Button busy className="self-start">Opening Paystack…</Button> : null}
     </div>
   );
 }

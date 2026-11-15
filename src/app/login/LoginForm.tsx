@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { GoogleButton } from "@/components/GoogleButton";
 import { Button, ErrorText, Field, Logo } from "@/components/ui";
 import { api } from "@/lib/client/api";
+import { normalizePhone } from "@/lib/phone";
 
 type Mode = "phone" | "email" | "qr" | "password";
 
@@ -21,13 +22,13 @@ export function LoginForm() {
   );
 
   return (
-    <div className="w-full max-w-sm rounded-3xl border border-line bg-surface p-7">
+    <div className="w-full max-w-sm rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-8">
       <div className="mb-6 flex flex-col items-center gap-2 text-center">
         <Logo />
-        <h1 className="font-display text-2xl font-bold">Sign in to Lumo</h1>
+        <h1 className="font-display text-[26px] font-semibold leading-tight">Sign in to Lumo</h1>
         <p className="text-sm text-muted">Use the same account as the app.</p>
       </div>
-      <div role="tablist" className="mb-5 grid grid-cols-4 gap-1 rounded-xl bg-bg p-1 text-xs font-semibold">
+      <div role="tablist" className="mb-5 grid grid-cols-4 gap-1 rounded-xl border border-line-soft bg-surface2 p-1 text-xs font-semibold">
         {(["qr", "phone", "email", "password"] as const).map((m) => (
           <button
             key={m}
@@ -37,7 +38,7 @@ export function LoginForm() {
               setMode(m);
               setError(null);
             }}
-            className={`h-8 rounded-lg ${mode === m ? "bg-surface2 text-ink" : "text-muted"}`}
+            className={`h-8 rounded-lg transition ${mode === m ? "bg-surface text-ink shadow-sm ring-1 ring-line" : "text-muted hover:text-ink"}`}
           >
             {{ qr: "QR code", phone: "Phone", email: "Email", password: "Password" }[m]}
           </button>
@@ -80,7 +81,7 @@ function QrLogin({ onDone }: { onDone: (r: { needs_birth_date?: boolean }) => vo
     api.auth
       .qrCreate()
       .then(async (q) => {
-        const img = await QRCode.toDataURL(q.qr_payload, { margin: 1, width: 220, color: { dark: "#0B0B0F", light: "#F5F5F7" } });
+        const img = await QRCode.toDataURL(q.qr_payload, { margin: 1, width: 220, color: { dark: "#000000", light: "#FFFFFF" } });
         if (alive) {
           setQr({ id: q.qr_id, poll: q.poll_token, img, expires: Date.now() + q.expires_in * 1000 });
           setState("waiting");
@@ -114,7 +115,7 @@ function QrLogin({ onDone }: { onDone: (r: { needs_birth_date?: boolean }) => vo
 
   return (
     <div className="flex flex-col items-center gap-3 text-center">
-      <div className="flex h-[236px] w-[236px] items-center justify-center rounded-2xl bg-ink p-2">
+      <div className="flex h-[236px] w-[236px] items-center justify-center rounded-2xl bg-white p-2 ring-1 ring-line">
         {qr && state === "waiting" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={qr.img} alt="Sign-in QR code" width={220} height={220} />
@@ -129,7 +130,7 @@ function QrLogin({ onDone }: { onDone: (r: { needs_birth_date?: boolean }) => vo
             {state === "expired" ? "Get a new code" : "Try again"}
           </Button>
         ) : (
-          <span className="h-6 w-6 animate-spin rounded-full border-2 border-bg border-t-transparent" />
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-neutral-400 border-t-transparent" />
         )}
       </div>
       <p className="text-sm text-muted-strong">
@@ -152,8 +153,15 @@ function OtpLogin({
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const valid = channel === "sms" ? /^\+\d{8,15}$/.test(target.replace(/\s/g, "")) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target.trim());
-  const norm = channel === "sms" ? target.replace(/\s/g, "") : target.trim().toLowerCase();
+  const norm = channel === "sms" ? normalizePhone(target) : target.trim().toLowerCase();
+  const valid = channel === "sms" ? /^\+\d{8,15}$/.test(norm) : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm);
+  // One code a minute per address (server rule); show when the next is allowed.
+  const [wait, setWait] = useState(0);
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -172,7 +180,7 @@ function OtpLogin({
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!sent) void run(async () => (await api.auth.sendOtp(channel, norm), setSent(true)));
+        if (!sent) void run(async () => (await api.auth.sendOtp(channel, norm), setSent(true), setWait(60)));
         else void run(async () => onDone(await api.auth.verifyOtp(channel, norm, code)));
       }}
     >
@@ -199,9 +207,19 @@ function OtpLogin({
         {sent ? "Verify" : "Send code"}
       </Button>
       {sent ? (
-        <button type="button" className="text-xs text-muted" onClick={() => (setSent(false), setCode(""))}>
-          Use a different {channel === "sms" ? "number" : "email"}
-        </button>
+        <div className="flex justify-between text-xs text-muted">
+          <button type="button" className="hover:text-ink" onClick={() => (setSent(false), setCode(""))}>
+            Use a different {channel === "sms" ? "number" : "email"}
+          </button>
+          <button
+            type="button"
+            className="hover:text-ink disabled:opacity-60"
+            disabled={wait > 0 || busy}
+            onClick={() => void run(async () => (await api.auth.sendOtp(channel, norm), setWait(60)))}
+          >
+            {wait > 0 ? `Resend in ${wait}s` : "Resend code"}
+          </button>
+        </div>
       ) : null}
     </form>
   );
@@ -235,3 +253,4 @@ function PasswordLogin({ onDone, onError }: { onDone: (r: { needs_birth_date?: b
     </form>
   );
 }
+

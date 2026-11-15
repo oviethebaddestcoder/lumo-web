@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/Providers";
+import { themeBootScript } from "@/components/Theme";
 import "./globals.css";
 
 const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lumo.app";
@@ -11,11 +12,25 @@ export const metadata: Metadata = {
   openGraph: { siteName: "Lumo", type: "website" },
 };
 
-export const viewport: Viewport = { themeColor: "#0B0B0F", colorScheme: "dark" };
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FAF9F7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0C0C0F" },
+  ],
+};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className="h-full antialiased">
+    // data-theme is set before paint by the boot script, so React must not
+    // complain that the server HTML lacked it.
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+      </head>
       <body className="min-h-full">
         <Providers>{children}</Providers>
       </body>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StreamKey } from "@/components/StreamKey";
-import { Button, Card, ErrorText, Field } from "@/components/ui";
+import { Button, Card, ErrorText, Field, PageHeader } from "@/components/ui";
 import { api, type HostRoom } from "@/lib/client/api";
 import { useMe } from "@/lib/client/hooks";
 import { compact, duration } from "@/lib/format";
@@ -41,6 +41,14 @@ export default function LivePage() {
       }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["myRooms"] }),
   });
+  // The list refreshes every 10 s; tick locally so "Live for" moves every second.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!current) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [current]);
+  const liveFor = current ? Math.max(current.duration_sec, Math.floor((now - Date.parse(current.started_at)) / 1000)) : 0;
   const end = useMutation({
     mutationFn: (id: string) => api.live.end(id),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["myRooms"] }),
@@ -48,34 +56,35 @@ export default function LivePage() {
 
   return (
     <>
-      <h1 className="font-display text-3xl font-bold">Live</h1>
+      <PageHeader title="Live" />
       <div className="flex flex-wrap gap-4">
         {current ? (
-          <Card title="You're live" className="flex-[2_1_420px]" action={<span className="rounded bg-live px-2 py-0.5 text-xs font-bold">LIVE</span>}>
+          <Card title="You're live" className="flex-[2_1_320px]" action={<span className="rounded bg-live px-2 py-0.5 text-xs font-bold text-white">LIVE</span>}>
             <p className="text-lg font-semibold">{current.title}</p>
-            <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+            <div className="mt-4 grid grid-cols-3 gap-2 text-sm sm:gap-3">
               <div>
                 <p className="text-muted">Watching now</p>
-                <p className="font-display text-2xl font-bold">{compact(room.data?.viewers ?? 0)}</p>
+                <p className="font-display text-[22px] font-semibold leading-tight tabular-nums sm:text-[26px]">{compact(room.data?.viewers ?? 0)}</p>
               </div>
               <div>
                 <p className="text-muted">Gift coins</p>
-                <p className="font-display text-2xl font-bold text-coin">{compact(room.data?.gift_coins ?? current.gift_coins)}</p>
+                <p className="font-display text-[22px] font-semibold leading-tight tabular-nums sm:text-[26px] text-coin">{compact(room.data?.gift_coins ?? current.gift_coins)}</p>
               </div>
               <div>
                 <p className="text-muted">Live for</p>
-                <p className="font-display text-2xl font-bold">{duration(current.duration_sec)}</p>
+                <p className="font-display text-[22px] font-semibold leading-tight tabular-nums sm:text-[26px]">{duration(liveFor)}</p>
               </div>
             </div>
             <p className="mt-4 text-sm text-muted">
               Viewers see your stream as soon as your encoder connects. Chat and gifts are on your phone in the Lumo app.
             </p>
+            <ErrorText error={end.error} />
             <Button kind="ghost" className="mt-4" busy={end.isPending} onClick={() => confirm("End this LIVE?") && end.mutate(current.id)}>
               End LIVE
             </Button>
           </Card>
         ) : (
-          <Card title="Go live with OBS" className="flex-[2_1_420px]">
+          <Card title="Go live with OBS" className="flex-[2_1_320px]">
             <form
               className="flex flex-col gap-4"
               onSubmit={(e) => {
@@ -105,7 +114,7 @@ export default function LivePage() {
                 <Toggle label="Gifts" hint={adult ? "Viewers can send gifts" : "Available at 18+"} checked={allowGifts && adult} onChange={setAllowGifts} disabled={!adult} />
                 <Toggle label="Save replay" hint="Keep a recording on your profile" checked={replay} onChange={setReplay} />
               </div>
-              <div className="grid grid-cols-[1fr_1.6fr] gap-3">
+              <div className="grid gap-3 sm:grid-cols-[1fr_1.6fr]">
                 <Field label="Coin goal" inputMode="numeric" value={goal} onChange={(e) => setGoal(e.target.value.replace(/\D/g, ""))} placeholder="0" />
                 <Field label="Goal label" value={goalLabel} maxLength={40} onChange={(e) => setGoalLabel(e.target.value)} placeholder="New mic" />
               </div>
@@ -135,7 +144,7 @@ function Toggle({ label, hint, checked, onChange, disabled }: { label: string; h
         <span className="block font-medium">{label}</span>
         <span className="block text-xs text-muted">{hint}</span>
       </span>
-      <input type="checkbox" className="h-5 w-5 accent-[#D61F52]" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="h-5 w-5 accent-live" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
     </label>
   );
 }

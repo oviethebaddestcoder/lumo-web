@@ -95,7 +95,7 @@ export const api = {
     payouts: () => get<{ items: T.Payout[] }>("/wallet/payouts"),
     payout: (diamonds: number, key: string) => post<T.PayoutResult>("/wallet/payouts", { diamonds }, { idempotencyKey: key }),
     banks: () => get<{ items: T.Bank[] }>("/wallet/banks"),
-    payoutAccount: () => get<{ account: T.PayoutAccount | null }>("/wallet/payout-account"),
+    payoutAccount: () => get<{ account: T.PayoutAccount | null; kobo_per_diamond?: number; min_diamonds?: number }>("/wallet/payout-account"),
     setPayoutAccount: (bank_code: string, account_number: string) =>
       call<{ account: T.PayoutAccount }>("PUT", v1("/wallet/payout-account"), { body: { bank_code, account_number } }),
     webCheckout: (pack_id: string, email: string, callback_url: string) =>

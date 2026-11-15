@@ -51,7 +51,7 @@ async function VideoContent({ params }: { params: Promise<{ id: string }> }) {
       ) : (
         <div className="flex aspect-video items-center justify-center rounded-2xl bg-surface text-muted">This video is still processing.</div>
       )}
-      <h1 className="font-display text-2xl font-bold">{v.title || "Untitled"}</h1>
+      <h1 className="font-display text-[26px] font-semibold leading-tight">{v.title || "Untitled"}</h1>
       <p className="text-sm text-muted">
         {compact(v.views)} views · {new Date(v.created_at).toLocaleDateString("en-GB", { dateStyle: "medium" })}
       </p>
@@ -64,7 +64,7 @@ async function VideoContent({ params }: { params: Promise<{ id: string }> }) {
           </span>
         </Link>
       ) : null}
-      {v.description ? <p className="whitespace-pre-wrap rounded-xl bg-surface p-4 text-[15px]">{v.description}</p> : null}
+      {v.description ? <p className="whitespace-pre-wrap break-words rounded-xl border border-line bg-surface p-4 text-[15px]">{v.description}</p> : null}
     </article>
   );
 }
